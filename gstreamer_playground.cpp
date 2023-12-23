@@ -1,5 +1,6 @@
 #include <gst/gst.h>
 #include <gst/video/videooverlay.h>
+#include <iostream>
 
 //#define USE_PLAYBIN
  
@@ -48,7 +49,7 @@ static void on_pad_added(GstElement* element, GstPad* pad, gpointer data)
     gst_object_unref(sinkpad);
 }
 
-int use_playbin()
+int use_playbin(std::string filename)
 {
     GstElement* pipeline = gst_element_factory_make("playbin", "video-player");
 
@@ -59,8 +60,9 @@ int use_playbin()
     }
 
     // Set the URI to the file path of your MP4 video
-    //g_object_set(pipeline, "uri", "c:\\gstreamer\\colors.mp4", nullptr);
-    g_object_set(pipeline, "uri", "file:///c:/gstreamer/colors.mp4", nullptr);
+    //g_object_set(pipeline, "uri", "file:///c:/gstreamer/colors.mp4", nullptr);
+    std::string struri = "file:///" + filename;
+    g_object_set(pipeline, "uri", struri.c_str(), nullptr);
 
 
     // Set the pipeline to the "playing" state
@@ -94,13 +96,10 @@ int use_playbin()
     return 0;
 }
 
-int main(int argc, char* argv[]) 
+int playvid(std::string filename)
 {
-    // Initialize GStreamer
-    gst_init(nullptr, nullptr);
-
 #ifdef USE_PLAYBIN
-    use_playbin();
+    use_playbin(filename);
 #else
     gst_debug_set_active(true);
     gst_debug_set_default_threshold(GST_LEVEL_LOG);
@@ -125,7 +124,7 @@ int main(int argc, char* argv[])
     //GstElement*  sink = gst_element_factory_make("appsink", "video-output");
     GstElement* videosink = gst_element_factory_make("autovideosink", "video-sink");
     //GstElement* videosink = gst_element_factory_make("d3dvideosink", "video-sink");
-  
+
     //if (!pipeline || !source || !decoder || !videoconvert || !videosink) 
     if (!pipeline || !source || !demuxer || !parser || !decoder || !videoconvert || !videosink)
     {
@@ -134,9 +133,8 @@ int main(int argc, char* argv[])
     }
 
     // Set the input file path
-    //g_object_set(source, "location", "c:\\gstreamer\\colors.mp4", nullptr);
-    g_object_set(source, "location", "c:/gstreamer/colors.mp4", nullptr);
-    // g_object_set(source, "uri", "file:///c:/gstreamer/colors.mp4", nullptr);
+    //g_object_set(source, "location", "c:/gstreamer/colors.mp4", nullptr);
+    g_object_set(source, "location", filename.c_str(), nullptr);
 
     guint bus_watch_id;
     GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
@@ -146,8 +144,8 @@ int main(int argc, char* argv[])
     gst_bin_add_many(GST_BIN(pipeline), source, demuxer, parser, decoder, videoconvert, videosink, nullptr);
 
 #if 0   // we can link them all if the output is a stream. For synchronous file playback, we need syncing and 
-        // dynamic linking of the demuxer and parser
-    // Link elements
+    // dynamic linking of the demuxer and parser
+// Link elements
     if (gst_element_link_many(source, demuxer, parser, decoder, videoconvert, videosink, nullptr) != true)
     {
         g_printerr("Elements could not be linked.\n");
@@ -172,14 +170,14 @@ int main(int argc, char* argv[])
 
     // Set the pipeline to the "playing" state
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
-    if (ret == GST_STATE_CHANGE_FAILURE) 
+    if (ret == GST_STATE_CHANGE_FAILURE)
     {
         g_printerr("Unable to set the pipeline to the playing state.\n");
         gst_object_unref(pipeline);
         return -1;
     }
 
-    g_main_loop_run(loop);   
+    g_main_loop_run(loop);
 
     // Free resources
     gst_element_set_state(pipeline, GST_STATE_NULL);
@@ -190,4 +188,31 @@ int main(int argc, char* argv[])
 #endif
     return 0;
 }
+
+int main(int argc, char* argv[]) 
+{
+    if (argc < 3) 
+    {
+        std::cout << "Usage: " << argv[0] << " <command> <other parms>" << std::endl;
+        std::cout << "Example to play a video file: gstreamer_playground playvid c:/gstreamer/colors.mp4" << std::endl;
+    
+        return 1; // Return an error code
+    }
+
+    std::cout << "Arguments provided:" << std::endl;
+    for (int i = 1; i < argc; ++i) 
+    {
+        std::cout << "  " << i << ": " << argv[i] << std::endl;
+    }
+
+    // Initialize GStreamer
+    gst_init(nullptr, nullptr);
+
+    if (std::string(argv[1]) == "playvid")
+    { 
+        std::string filename(argv[2]);
+        playvid(filename);
+    }
+}
+ 
 
